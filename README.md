@@ -1,108 +1,74 @@
-version 1.0
+# biomodalDuet
 
-workflow biomodalDuet {
-    input {
-        Array[File] fastqR1
-        Array[File] fastqR2
-        String sampleId
-        String runName
-        String mode = "6bp"
-        String modules = "biomodal-duet/1.5.0"
-    }
+WDL wrapper for the Biomodal DUET methylation sequencing pipeline v1.5.0
 
-    parameter_meta {
-        fastqR1:           "Array of R1 FASTQ files (all lanes for one sample)"
-        fastqR2:           "Array of R2 FASTQ files (all lanes for one sample)"
-        sampleId:          "Sample identifier (used for naming output files)"
-        runName:           "Sequencing run name / flowcell ID"
-        mode:              "Biomodal DUET mode (default: 6bp)"
-        additionalProfile: "Nextflow profile to apply (default: deep_seq)"
-        modules:           "Environment modules to load"
-    }
+## Overview
 
-    call runDuet {
-        input:
-            fastqR1           = fastqR1,
-            fastqR2           = fastqR2,
-            sampleId          = sampleId,
-            runName           = runName,
-            mode              = mode,
-            modules           = modules
-    }
+## Dependencies
 
-    meta {
-        author: "Gavin Peng"
-        email: "gpeng@oicr.on.ca"
-        description: "WDL wrapper for the Biomodal DUET methylation sequencing pipeline v1.5.0"
-        dependencies: [
-            {
-                name: "biomodal-duet/1.5.0",
-                url: "https://biomodal.com"
-            }
-        ]
-        output_meta: {
-            outputBam:           "Deduplicated BAM file",
-            outputBai:           "BAM index file",
-            hmc_cxreport:        "5-hydroxymethylcytosine CX report (gz)",
-            hmc_cxreportIndex:   "Index for hmc CX report",
-            mc_cxreport:         "5-methylcytosine CX report (gz)",
-            mc_cxreportIndex:    "Index for mc CX report",
-            modc_cxreport:       "Modified cytosine CX report (gz)",
-            modc_cxreportIndex:  "Index for modc CX report",
-            vcf:                 "Germline variant calls VCF (optional)",
-            vcfIndex:            "VCF index (optional)",
-            summaryCsv:          "Run-level summary CSV",
-            summaryHtml:         "Run-level summary HTML report",
-            summaryXlsx:         "Run-level summary Excel report",
-            multiqcReport:       "MultiQC HTML report",
-            metricsDefinitions:  "Metrics definitions CSV"
-        }
-    }
+* [biomodal-duet 1.5.0](https://biomodal.com)
 
-    output {
-        File    outputBam          = runDuet.outputBam
-        File    outputBai          = runDuet.outputBai
-        File    hmc_cxreport       = runDuet.hmc_cxreport
-        File    hmc_cxreportIndex  = runDuet.hmc_cxreportIndex
-        File    mc_cxreport        = runDuet.mc_cxreport
-        File    mc_cxreportIndex   = runDuet.mc_cxreportIndex
-        File    modc_cxreport      = runDuet.modc_cxreport
-        File    modc_cxreportIndex = runDuet.modc_cxreportIndex
-        File?   vcf                = runDuet.vcf
-        File?   vcfIndex           = runDuet.vcfIndex
-        File    summaryCsv         = runDuet.summaryCsv
-        File    summaryHtml        = runDuet.summaryHtml
-        File    summaryXlsx        = runDuet.summaryXlsx
-        File    multiqcReport      = runDuet.multiqcReport
-        File    metricsDefinitions = runDuet.metricsDefinitions
-    }
-}
 
-task runDuet {
-    input {
-        Array[File] fastqR1
-        Array[File] fastqR2
-        String sampleId
-        String runName
-        String mode
-        String additionalProfile = "deep_seq"
-        String modules
-        Int    jobMemory = 16
-        Int    timeout = 96
-    }
-    parameter_meta {
-        fastqR1:           "Array of R1 FASTQ files (all lanes for one sample)"
-        fastqR2:           "Array of R2 FASTQ files (all lanes for one sample)"
-        sampleId:          "Sample identifier (used for naming output files)"
-        runName:           "Sequencing run name / flowcell ID"
-        mode:              "Biomodal DUET mode (default: 6bp)"
-        additionalProfile: "Nextflow profile to apply (default: deep_seq)"
-        modules:           "Environment modules to load"
-        jobMemory:         "Memory in GB for head task"
-        timeout:           "Timeout in hours"
-    }
+## Usage
 
-    command <<<
+### Cromwell
+```
+java -jar cromwell.jar run biomodalDuet.wdl --inputs inputs.json
+```
+
+### Inputs
+
+#### Required workflow parameters:
+Parameter|Value|Description
+---|---|---
+`fastqR1`|Array[File]|Array of R1 FASTQ files (all lanes for one sample)
+`fastqR2`|Array[File]|Array of R2 FASTQ files (all lanes for one sample)
+`sampleId`|String|Sample identifier (used for naming output files)
+`runName`|String|Sequencing run name / flowcell ID
+
+
+#### Optional workflow parameters:
+Parameter|Value|Default|Description
+---|---|---|---
+`mode`|String|"6bp"|Biomodal DUET mode (default: 6bp)
+`modules`|String|"biomodal-duet/1.5.0"|Environment modules to load
+
+
+#### Optional task parameters:
+Parameter|Value|Default|Description
+---|---|---|---
+`runDuet.additionalProfile`|String|"deep_seq"|Nextflow profile to apply (default: deep_seq)
+`runDuet.jobMemory`|Int|16|Memory in GB for head task
+`runDuet.timeout`|Int|96|Timeout in hours
+
+
+### Outputs
+
+Output | Type | Description | Labels
+---|---|---|---
+`outputBam`|File|Deduplicated BAM file|
+`outputBai`|File|BAM index file|
+`hmc_cxreport`|File|5-hydroxymethylcytosine CX report (gz)|
+`hmc_cxreportIndex`|File|Index for hmc CX report|
+`mc_cxreport`|File|5-methylcytosine CX report (gz)|
+`mc_cxreportIndex`|File|Index for mc CX report|
+`modc_cxreport`|File|Modified cytosine CX report (gz)|
+`modc_cxreportIndex`|File|Index for modc CX report|
+`vcf`|File?|Germline variant calls VCF (optional)|
+`vcfIndex`|File?|VCF index (optional)|
+`summaryCsv`|File|Run-level summary CSV|
+`summaryHtml`|File|Run-level summary HTML report|
+`summaryXlsx`|File|Run-level summary Excel report|
+`multiqcReport`|File|MultiQC HTML report|
+`metricsDefinitions`|File|Metrics definitions CSV|
+
+
+## Commands
+This section lists command(s) run by biomodalDuet workflow
+
+* Running biomodalDuet
+
+```
         set -euo pipefail
 
         mkdir -p biomodal_instance
@@ -251,29 +217,9 @@ PYEOF
         ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_multiqc_report.html"               multiqc_report.html
         ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_duet-evoC_Metrics_Definitions.csv" metrics_definitions.csv
 
-    >>>
+```
+## Support
 
-    runtime {
-        memory:  "~{jobMemory} GB"
-        timeout: "~{timeout}"
-        modules: "~{modules}"
-    }
+For support, please file an issue on the [Github project](https://github.com/oicr-gsi) or send an email to gsi@oicr.on.ca .
 
-    output {
-        File    outputBam          = "output.bam"
-        File    outputBai          = "output.bam.bai"
-        File    hmc_cxreport       = "hmc_cxreport.txt.gz"
-        File    hmc_cxreportIndex  = "hmc_cxreport.txt.gz.tbi"
-        File    mc_cxreport        = "mc_cxreport.txt.gz"
-        File    mc_cxreportIndex   = "mc_cxreport.txt.gz.tbi"
-        File    modc_cxreport      = "modc_cxreport.txt.gz"
-        File    modc_cxreportIndex = "modc_cxreport.txt.gz.tbi"
-        File    vcf                = "output.vcf.gz"
-        File    vcfIndex           = "output.vcf.gz.tbi"
-        File    summaryCsv         = "summary.csv"
-        File    summaryHtml        = "summary.html"
-        File    summaryXlsx        = "summary.xlsx"
-        File    multiqcReport      = "multiqc_report.html"
-        File    metricsDefinitions = "metrics_definitions.csv"
-    }
-}
+_Generated with generate-markdown-readme (https://github.com/oicr-gsi/gsi-wdl-tools/)_
