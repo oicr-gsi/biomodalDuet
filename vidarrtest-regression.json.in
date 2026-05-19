@@ -5,14 +5,26 @@
             "biomodalDuet.runDuet.jobMemory": 16,
             "biomodalDuet.runDuet.timeout": 96,
             "biomodalDuet.runDuet.additionalProfile": "deep_seq",
-            "biomodalDuet.sampleId": "KLCS_150274_Pl_P_PE_586_NN",
+            "biomodalDuet.sampleId": "test_01",
             "biomodalDuet.runName": "240426_M00753_0704_000000000-DNNHV",
-            "biomodalDuet.outputFileNamePrefix": "KLCS_150274_Pl_P_PE_586_NN",
+            "biomodalDuet.outputFileNamePrefix": "test_01",
             "biomodalDuet.mode": "6bp",
             "biomodalDuet.fastqR1": [
                 {
                     "contents": {
-                        "configuration": "/.mounts/labs/gsi/testdata/biomodalQC/1.0.4/inputs/KLCS_150274_Pl_P_PE_586_NN_240426_M00753_0704_000000000-DNNHV_1_ACTCTCGA-TGGTACAG_R1.fastq.gz",
+                        "configuration": "/.mounts/labs/gsi/testdata/biomodalDuet/1.5.0/input/test_01_6.downSampledFastq1.fastq.gz",
+                        "externalIds": [
+                            {
+                                "id": "TEST",
+                                "provider": "TEST"
+                            }
+                        ]
+                    },
+                    "type": "EXTERNAL"
+                },
+                {
+                    "contents": {
+                        "configuration": "/.mounts/labs/gsi/testdata/biomodalDuet/1.5.0/input/test_01_8.downSampledFastq1.fastq.gz",
                         "externalIds": [
                             {
                                 "id": "TEST",
@@ -26,7 +38,19 @@
             "biomodalDuet.fastqR2": [
                 {
                     "contents": {
-                        "configuration": "/.mounts/labs/gsi/testdata/biomodalQC/1.0.4/inputs/KLCS_150274_Pl_P_PE_586_NN_240426_M00753_0704_000000000-DNNHV_1_ACTCTCGA-TGGTACAG_R2.fastq.gz",
+                        "configuration": "/.mounts/labs/gsi/testdata/biomodalDuet/1.5.0/input/test_01_6.downSampledFastq2.fastq.gz",
+                        "externalIds": [
+                            {
+                                "id": "TEST",
+                                "provider": "TEST"
+                            }
+                        ]
+                    },
+                    "type": "EXTERNAL"
+                },
+                {
+                    "contents": {
+                        "configuration": "/.mounts/labs/gsi/testdata/biomodalDuet/1.5.0/input/test_01_8.downSampledFastq2.fastq.gz",
                         "externalIds": [
                             {
                                 "id": "TEST",
@@ -43,7 +67,7 @@
             "write_to_cache": false,
             "read_from_cache": false
         },
-        "id": "KLCS-150274-Pl-P-PE-586-NN",
+        "id": "test_01",
         "metadata": {
             "biomodalDuet.outputBam": {
                 "contents": [
