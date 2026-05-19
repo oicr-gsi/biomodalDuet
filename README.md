@@ -25,6 +25,7 @@ Parameter|Value|Description
 `fastqR2`|Array[File]|Array of R2 FASTQ files (all lanes for one sample)
 `sampleId`|String|Sample identifier (used for naming output files)
 `runName`|String|Sequencing run name / flowcell ID
+`outputFileNamePrefix`|String|Prefix for all output file names
 
 
 #### Optional workflow parameters:
@@ -46,21 +47,21 @@ Parameter|Value|Default|Description
 
 Output | Type | Description | Labels
 ---|---|---|---
-`outputBam`|File|Deduplicated BAM file|
-`outputBai`|File|BAM index file|
-`hmc_cxreport`|File|5-hydroxymethylcytosine CX report (gz)|
-`hmc_cxreportIndex`|File|Index for hmc CX report|
-`mc_cxreport`|File|5-methylcytosine CX report (gz)|
-`mc_cxreportIndex`|File|Index for mc CX report|
-`modc_cxreport`|File|Modified cytosine CX report (gz)|
-`modc_cxreportIndex`|File|Index for modc CX report|
-`vcf`|File?|Germline variant calls VCF (optional)|
-`vcfIndex`|File?|VCF index (optional)|
-`summaryCsv`|File|Run-level summary CSV|
-`summaryHtml`|File|Run-level summary HTML report|
-`summaryXlsx`|File|Run-level summary Excel report|
-`multiqcReport`|File|MultiQC HTML report|
-`metricsDefinitions`|File|Metrics definitions CSV|
+`outputBam`|File|Deduplicated, coordinate-sorted BAM file of aligned reads|
+`outputBai`|File|BAM index (.bai) for random-access retrieval of the deduplicated BAM|
+`hmc_cxreport`|File|Cytosine Report for 5-hydroxymethylcytosine (5hmC) at CpG sites. Tab-separated, one row per stranded CpG position; columns report chromosome, position, strand, methylated-read count, unmethylated-read count, and context (CG). Suitable for downstream epigenetic analysis tools (e.g. methylKit, DSS). Gzip-compressed.|
+`hmc_cxreportIndex`|File|Tabix index (.tbi) for the 5hmC Cytosine Report, enabling fast random-access queries by genomic region|
+`mc_cxreport`|File|Cytosine Report for 5-methylcytosine (5mC) at CpG sites. Same tab-separated, per-stranded-CpG format as the 5hmC report; columns give chromosome, position, strand, methylated-read count, unmethylated-read count, and context (CG). Suitable for downstream epigenetic analysis tools (e.g. methylKit, DSS). Gzip-compressed.|
+`mc_cxreportIndex`|File|Tabix index (.tbi) for the 5mC Cytosine Report, enabling fast random-access queries by genomic region|
+`modc_cxreport`|File|Cytosine Report for total modified cytosine (5mC + 5hmC combined, modC) at CpG sites. Same tab-separated, per-stranded-CpG format; provides an aggregate modification signal across both marks. Gzip-compressed.|
+`modc_cxreportIndex`|File|Tabix index (.tbi) for the modC Cytosine Report, enabling fast random-access queries by genomic region|
+`vcf`|File?|Germline variant calls VCF (optional; absent when no variants are called)|
+`vcfIndex`|File?|Tabix index (.tbi) for the germline VCF (optional)|
+`summaryCsv`|File|Run-level DUET summary metrics in CSV format|
+`summaryHtml`|File|Run-level DUET summary metrics as an interactive HTML report|
+`summaryXlsx`|File|Run-level DUET summary metrics in Excel format|
+`multiqcReport`|File|MultiQC HTML report aggregating QC metrics across all pipeline steps|
+`metricsDefinitions`|File|CSV file defining and describing each metric reported in the summary outputs|
 
 
 ## Commands
@@ -99,12 +100,21 @@ This section lists command(s) run by biomodalDuet workflow
             share_metrics: false
 CLIEOF
 
+        # Unquoted heredoc: bash expands ${BIOMODAL_IMAGES_DIR} for libraryDir/cacheDir.
         cat >> "${INSTANCE_DIR}/nextflow_override.config" << NFEOF
 
-        singularity {
-        libraryDir = "${BIOMODAL_IMAGES_DIR}"
-        cacheDir   = "${BIOMODAL_IMAGES_DIR}"
-        }
+singularity {
+    libraryDir = "${BIOMODAL_IMAGES_DIR}"
+    cacheDir   = "${BIOMODAL_IMAGES_DIR}"
+}
+NFEOF
+        # Resolve the canonical (symlink-free) path to the pipeline bin dir. Singularity won't follow symlink
+        _BIN_REAL=$(realpath "${INSTANCE_DIR}/pipelines/duet/1.5.0/bin")
+        cat >> "${INSTANCE_DIR}/nextflow_override.config" << NFEOF
+
+singularity {
+    runOptions = '--bind "\$TMPDIR:/tmp" --bind "${_BIN_REAL}:${_BIN_REAL}"'
+}
 NFEOF
 
         CONFIG_PATH="${INSTANCE_DIR}/nextflow_override.config" python3 <<'PYEOF'
@@ -181,41 +191,42 @@ PYEOF
             --mode ~{mode}
 
         # ---------------------------------------------------------------------------
-        # Locate results subdirectory: nf-results/<sample>/<duet-version_sample_mode>/
+        # Locate results subdirectory: nf-results/<duet-version_sample_mode>/
         # ---------------------------------------------------------------------------
-        RESULTS_SUBDIR=$(find "$(pwd)/nf-results" -mindepth 2 -maxdepth 2 \
+        RESULTS_SUBDIR=$(find "$(pwd)/nf-results" -mindepth 1 -maxdepth 1 \
                            -type d -name "duet-*" | head -1)
         echo "Results subdir: ${RESULTS_SUBDIR}"
 
         GENOME_PREFIX="${SAMPLE_ID_DASH}.genome.GRCh38Decoy_primary_assembly.dedup"
+        OUTPUT_PREFIX="~{outputFileNamePrefix}"
 
         # BAMs
-        ln -s "${RESULTS_SUBDIR}/sample_outputs/bams/${GENOME_PREFIX}.bam"     output.bam
-        ln -s "${RESULTS_SUBDIR}/sample_outputs/bams/${GENOME_PREFIX}.bam.bai" output.bam.bai
+        ln -s "${RESULTS_SUBDIR}/sample_outputs/bams/${GENOME_PREFIX}.bam"     "${OUTPUT_PREFIX}.bam"
+        ln -s "${RESULTS_SUBDIR}/sample_outputs/bams/${GENOME_PREFIX}.bam.bai" "${OUTPUT_PREFIX}.bam.bai"
 
         # modc quantification
-        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.hmc_cxreport.txt.gz"     hmc_cxreport.txt.gz
-        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.hmc_cxreport.txt.gz.tbi" hmc_cxreport.txt.gz.tbi
-        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.mc_cxreport.txt.gz"      mc_cxreport.txt.gz
-        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.mc_cxreport.txt.gz.tbi"  mc_cxreport.txt.gz.tbi
-        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.modc_cxreport.txt.gz"    modc_cxreport.txt.gz
-        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.modc_cxreport.txt.gz.tbi" modc_cxreport.txt.gz.tbi
+        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.hmc_cxreport.txt.gz"     "${OUTPUT_PREFIX}.hmc_cxreport.txt.gz"
+        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.hmc_cxreport.txt.gz.tbi" "${OUTPUT_PREFIX}.hmc_cxreport.txt.gz.tbi"
+        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.mc_cxreport.txt.gz"      "${OUTPUT_PREFIX}.mc_cxreport.txt.gz"
+        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.mc_cxreport.txt.gz.tbi"  "${OUTPUT_PREFIX}.mc_cxreport.txt.gz.tbi"
+        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.modc_cxreport.txt.gz"    "${OUTPUT_PREFIX}.modc_cxreport.txt.gz"
+        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.modc_cxreport.txt.gz.tbi" "${OUTPUT_PREFIX}.modc_cxreport.txt.gz.tbi"
 
         # VCF (optional)
         VCF_FILE="${RESULTS_SUBDIR}/sample_outputs/variant_call_files/germline/${GENOME_PREFIX}.output.vcf.gz"
         if [ -f "${VCF_FILE}" ]; then
-            ln -s "${VCF_FILE}"       output.vcf.gz
-            ln -s "${VCF_FILE}.tbi"   output.vcf.gz.tbi
+            ln -s "${VCF_FILE}"       "${OUTPUT_PREFIX}.vcf.gz"
+            ln -s "${VCF_FILE}.tbi"   "${OUTPUT_PREFIX}.vcf.gz.tbi"
         else
-            touch output.vcf.gz output.vcf.gz.tbi
+            touch "${OUTPUT_PREFIX}.vcf.gz" "${OUTPUT_PREFIX}.vcf.gz.tbi"
         fi
 
         # Reports
-        ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_duet-evoC_Summary.csv"             summary.csv
-        ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_duet-evoC_Summary.html"            summary.html
-        ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_duet-evoC_Summary.xlsx"            summary.xlsx
-        ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_multiqc_report.html"               multiqc_report.html
-        ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_duet-evoC_Metrics_Definitions.csv" metrics_definitions.csv
+        ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_duet-evoC_Summary.csv"             "${OUTPUT_PREFIX}.summary.csv"
+        ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_duet-evoC_Summary.html"            "${OUTPUT_PREFIX}.summary.html"
+        ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_duet-evoC_Summary.xlsx"            "${OUTPUT_PREFIX}.summary.xlsx"
+        ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_multiqc_report.html"               "${OUTPUT_PREFIX}.multiqc_report.html"
+        ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_duet-evoC_Metrics_Definitions.csv" "${OUTPUT_PREFIX}.metrics_definitions.csv"
 
 ```
 ## Support

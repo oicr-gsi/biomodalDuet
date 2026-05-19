@@ -34,12 +34,21 @@ This section lists command(s) run by biomodalDuet workflow
             share_metrics: false
 CLIEOF
 
+        # Unquoted heredoc: bash expands ${BIOMODAL_IMAGES_DIR} for libraryDir/cacheDir.
         cat >> "${INSTANCE_DIR}/nextflow_override.config" << NFEOF
 
-        singularity {
-        libraryDir = "${BIOMODAL_IMAGES_DIR}"
-        cacheDir   = "${BIOMODAL_IMAGES_DIR}"
-        }
+singularity {
+    libraryDir = "${BIOMODAL_IMAGES_DIR}"
+    cacheDir   = "${BIOMODAL_IMAGES_DIR}"
+}
+NFEOF
+        # Resolve the canonical (symlink-free) path to the pipeline bin dir. Singularity won't follow symlink
+        _BIN_REAL=$(realpath "${INSTANCE_DIR}/pipelines/duet/1.5.0/bin")
+        cat >> "${INSTANCE_DIR}/nextflow_override.config" << NFEOF
+
+singularity {
+    runOptions = '--bind "\$TMPDIR:/tmp" --bind "${_BIN_REAL}:${_BIN_REAL}"'
+}
 NFEOF
 
         CONFIG_PATH="${INSTANCE_DIR}/nextflow_override.config" python3 <<'PYEOF'
@@ -116,40 +125,41 @@ PYEOF
             --mode ~{mode}
 
         # ---------------------------------------------------------------------------
-        # Locate results subdirectory: nf-results/<sample>/<duet-version_sample_mode>/
+        # Locate results subdirectory: nf-results/<duet-version_sample_mode>/
         # ---------------------------------------------------------------------------
-        RESULTS_SUBDIR=$(find "$(pwd)/nf-results" -mindepth 2 -maxdepth 2 \
+        RESULTS_SUBDIR=$(find "$(pwd)/nf-results" -mindepth 1 -maxdepth 1 \
                            -type d -name "duet-*" | head -1)
         echo "Results subdir: ${RESULTS_SUBDIR}"
 
         GENOME_PREFIX="${SAMPLE_ID_DASH}.genome.GRCh38Decoy_primary_assembly.dedup"
+        OUTPUT_PREFIX="~{outputFileNamePrefix}"
 
         # BAMs
-        ln -s "${RESULTS_SUBDIR}/sample_outputs/bams/${GENOME_PREFIX}.bam"     output.bam
-        ln -s "${RESULTS_SUBDIR}/sample_outputs/bams/${GENOME_PREFIX}.bam.bai" output.bam.bai
+        ln -s "${RESULTS_SUBDIR}/sample_outputs/bams/${GENOME_PREFIX}.bam"     "${OUTPUT_PREFIX}.bam"
+        ln -s "${RESULTS_SUBDIR}/sample_outputs/bams/${GENOME_PREFIX}.bam.bai" "${OUTPUT_PREFIX}.bam.bai"
 
         # modc quantification
-        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.hmc_cxreport.txt.gz"     hmc_cxreport.txt.gz
-        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.hmc_cxreport.txt.gz.tbi" hmc_cxreport.txt.gz.tbi
-        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.mc_cxreport.txt.gz"      mc_cxreport.txt.gz
-        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.mc_cxreport.txt.gz.tbi"  mc_cxreport.txt.gz.tbi
-        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.modc_cxreport.txt.gz"    modc_cxreport.txt.gz
-        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.modc_cxreport.txt.gz.tbi" modc_cxreport.txt.gz.tbi
+        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.hmc_cxreport.txt.gz"     "${OUTPUT_PREFIX}.hmc_cxreport.txt.gz"
+        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.hmc_cxreport.txt.gz.tbi" "${OUTPUT_PREFIX}.hmc_cxreport.txt.gz.tbi"
+        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.mc_cxreport.txt.gz"      "${OUTPUT_PREFIX}.mc_cxreport.txt.gz"
+        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.mc_cxreport.txt.gz.tbi"  "${OUTPUT_PREFIX}.mc_cxreport.txt.gz.tbi"
+        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.modc_cxreport.txt.gz"    "${OUTPUT_PREFIX}.modc_cxreport.txt.gz"
+        ln -s "${RESULTS_SUBDIR}/sample_outputs/modc_quantification/${GENOME_PREFIX}.CG.modc_cxreport.txt.gz.tbi" "${OUTPUT_PREFIX}.modc_cxreport.txt.gz.tbi"
 
         # VCF (optional)
         VCF_FILE="${RESULTS_SUBDIR}/sample_outputs/variant_call_files/germline/${GENOME_PREFIX}.output.vcf.gz"
         if [ -f "${VCF_FILE}" ]; then
-            ln -s "${VCF_FILE}"       output.vcf.gz
-            ln -s "${VCF_FILE}.tbi"   output.vcf.gz.tbi
+            ln -s "${VCF_FILE}"       "${OUTPUT_PREFIX}.vcf.gz"
+            ln -s "${VCF_FILE}.tbi"   "${OUTPUT_PREFIX}.vcf.gz.tbi"
         else
-            touch output.vcf.gz output.vcf.gz.tbi
+            touch "${OUTPUT_PREFIX}.vcf.gz" "${OUTPUT_PREFIX}.vcf.gz.tbi"
         fi
 
         # Reports
-        ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_duet-evoC_Summary.csv"             summary.csv
-        ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_duet-evoC_Summary.html"            summary.html
-        ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_duet-evoC_Summary.xlsx"            summary.xlsx
-        ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_multiqc_report.html"               multiqc_report.html
-        ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_duet-evoC_Metrics_Definitions.csv" metrics_definitions.csv
+        ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_duet-evoC_Summary.csv"             "${OUTPUT_PREFIX}.summary.csv"
+        ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_duet-evoC_Summary.html"            "${OUTPUT_PREFIX}.summary.html"
+        ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_duet-evoC_Summary.xlsx"            "${OUTPUT_PREFIX}.summary.xlsx"
+        ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_multiqc_report.html"               "${OUTPUT_PREFIX}.multiqc_report.html"
+        ln -s "${RESULTS_SUBDIR}/reports/${RUN_NAME}_duet-evoC_Metrics_Definitions.csv" "${OUTPUT_PREFIX}.metrics_definitions.csv"
 
 ```

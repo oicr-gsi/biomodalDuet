@@ -1,0 +1,202 @@
+[
+    {
+        "arguments": {
+            "biomodalDuet.modules": "biomodal-duet/1.5.0",
+            "biomodalDuet.runDuet.jobMemory": 16,
+            "biomodalDuet.runDuet.timeout": 96,
+            "biomodalDuet.runDuet.additionalProfile": "deep_seq",
+            "biomodalDuet.sampleId": "KLCS_150274_Pl_P_PE_586_NN",
+            "biomodalDuet.runName": "240426_M00753_0704_000000000-DNNHV",
+            "biomodalDuet.outputFileNamePrefix": "KLCS_150274_Pl_P_PE_586_NN",
+            "biomodalDuet.mode": "6bp",
+            "biomodalDuet.fastqR1": [
+                {
+                    "contents": {
+                        "configuration": "/.mounts/labs/gsi/testdata/biomodalQC/1.0.4/inputs/KLCS_150274_Pl_P_PE_586_NN_240426_M00753_0704_000000000-DNNHV_1_ACTCTCGA-TGGTACAG_R1.fastq.gz",
+                        "externalIds": [
+                            {
+                                "id": "TEST",
+                                "provider": "TEST"
+                            }
+                        ]
+                    },
+                    "type": "EXTERNAL"
+                },
+                {
+                    "contents": {
+                        "configuration": "/.mounts/labs/gsi/testdata/biomodalQC/1.0.4/inputs/KLCS_150281_Pl_P_PE_551_NN_240426_M00753_0704_000000000-DNNHV_1_TGAGCTAG-TAACCGGT_R1.fastq.gz",
+                        "externalIds": [
+                            {
+                                "id": "TEST",
+                                "provider": "TEST"
+                            }
+                        ]
+                    },
+                    "type": "EXTERNAL"
+                }
+            ],
+            "biomodalDuet.fastqR2": [
+                {
+                    "contents": {
+                        "configuration": "/.mounts/labs/gsi/testdata/biomodalQC/1.0.4/inputs/KLCS_150274_Pl_P_PE_586_NN_240426_M00753_0704_000000000-DNNHV_1_ACTCTCGA-TGGTACAG_R2.fastq.gz",
+                        "externalIds": [
+                            {
+                                "id": "TEST",
+                                "provider": "TEST"
+                            }
+                        ]
+                    },
+                    "type": "EXTERNAL"
+                },
+                {
+                    "contents": {
+                        "configuration": "/.mounts/labs/gsi/testdata/biomodalQC/1.0.4/inputs/KLCS_150281_Pl_P_PE_551_NN_240426_M00753_0704_000000000-DNNHV_1_TGAGCTAG-TAACCGGT_R2.fastq.gz",
+                        "externalIds": [
+                            {
+                                "id": "TEST",
+                                "provider": "TEST"
+                            }
+                        ]
+                    },
+                    "type": "EXTERNAL"
+                }
+            ]
+        },
+        "description": "Run_biomodalDuet_with_miseq_data",
+        "engineArguments": {
+            "write_to_cache": false,
+            "read_from_cache": false
+        },
+        "id": "KLCS-150274-Pl-P-PE-586-NN",
+        "metadata": {
+            "biomodalDuet.outputBam": {
+                "contents": [
+                    {
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_biomodalDuet_Run_biomodalDuet_with_miseq_data_@JENKINSID@"
+                    }
+                ],
+                "type": "ALL"
+            },
+            "biomodalDuet.outputBai": {
+                "contents": [
+                    {
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_biomodalDuet_Run_biomodalDuet_with_miseq_data_@JENKINSID@"
+                    }
+                ],
+                "type": "ALL"
+            },
+            "biomodalDuet.hmc_cxreport": {
+                "contents": [
+                    {
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_biomodalDuet_Run_biomodalDuet_with_miseq_data_@JENKINSID@"
+                    }
+                ],
+                "type": "ALL"
+            },
+            "biomodalDuet.hmc_cxreportIndex": {
+                "contents": [
+                    {
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_biomodalDuet_Run_biomodalDuet_with_miseq_data_@JENKINSID@"
+                    }
+                ],
+                "type": "ALL"
+            },
+            "biomodalDuet.mc_cxreport": {
+                "contents": [
+                    {
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_biomodalDuet_Run_biomodalDuet_with_miseq_data_@JENKINSID@"
+                    }
+                ],
+                "type": "ALL"
+            },
+            "biomodalDuet.mc_cxreportIndex": {
+                "contents": [
+                    {
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_biomodalDuet_Run_biomodalDuet_with_miseq_data_@JENKINSID@"
+                    }
+                ],
+                "type": "ALL"
+            },
+            "biomodalDuet.modc_cxreport": {
+                "contents": [
+                    {
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_biomodalDuet_Run_biomodalDuet_with_miseq_data_@JENKINSID@"
+                    }
+                ],
+                "type": "ALL"
+            },
+            "biomodalDuet.modc_cxreportIndex": {
+                "contents": [
+                    {
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_biomodalDuet_Run_biomodalDuet_with_miseq_data_@JENKINSID@"
+                    }
+                ],
+                "type": "ALL"
+            },
+            "biomodalDuet.vcf": {
+                "contents": [
+                    {
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_biomodalDuet_Run_biomodalDuet_with_miseq_data_@JENKINSID@"
+                    }
+                ],
+                "type": "ALL"
+            },
+            "biomodalDuet.vcfIndex": {
+                "contents": [
+                    {
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_biomodalDuet_Run_biomodalDuet_with_miseq_data_@JENKINSID@"
+                    }
+                ],
+                "type": "ALL"
+            },
+            "biomodalDuet.summaryCsv": {
+                "contents": [
+                    {
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_biomodalDuet_Run_biomodalDuet_with_miseq_data_@JENKINSID@"
+                    }
+                ],
+                "type": "ALL"
+            },
+            "biomodalDuet.summaryHtml": {
+                "contents": [
+                    {
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_biomodalDuet_Run_biomodalDuet_with_miseq_data_@JENKINSID@"
+                    }
+                ],
+                "type": "ALL"
+            },
+            "biomodalDuet.summaryXlsx": {
+                "contents": [
+                    {
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_biomodalDuet_Run_biomodalDuet_with_miseq_data_@JENKINSID@"
+                    }
+                ],
+                "type": "ALL"
+            },
+            "biomodalDuet.multiqcReport": {
+                "contents": [
+                    {
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_biomodalDuet_Run_biomodalDuet_with_miseq_data_@JENKINSID@"
+                    }
+                ],
+                "type": "ALL"
+            },
+            "biomodalDuet.metricsDefinitions": {
+                "contents": [
+                    {
+                        "outputDirectory": "@SCRATCH@/@DATE@_Workflow_biomodalDuet_Run_biomodalDuet_with_miseq_data_@JENKINSID@"
+                    }
+                ],
+                "type": "ALL"
+            }
+        },
+        "validators": [
+            {
+                "metrics_calculate": "@CHECKOUT@/tests/calculate.sh",
+                "metrics_compare": "@CHECKOUT@/tests/compare.sh",
+                "output_metrics": "/.mounts/labs/gsi/testdata/biomodalDuet/1.5.0/output_metrics/Run_biomodalDuet_with_miseq_data.metrics",
+                "type": "script"
+            }
+        ]
+    }
+]
