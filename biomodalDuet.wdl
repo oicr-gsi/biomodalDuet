@@ -194,13 +194,7 @@ PYEOF
         for i in "${!sorted_R1[@]}"; do
             r1="${sorted_R1[$i]}"
             r2="${sorted_R2[$i]}"
-            base=$(basename "$r1")
-            # Extract lane: single integer before barcode pattern _N_XXXX-XXXX_R1
-            lane_num=$(echo "$base" | grep -oP '_\K\d+(?=_[A-Z]+-[A-Z]+_R[12])' | head -1)
-            if [ -z "${lane_num}" ]; then
-                lane_num=$((i+1))
-            fi
-            lane=$(printf 'L%03d' "${lane_num}")
+            lane=$(printf 'L%03d' "$((i+1))")
             ln -s "${r1}" "nf-input/${SAMPLE_ID_DASH}_S1_${lane}_R1_001.fastq.gz"
             ln -s "${r2}" "nf-input/${SAMPLE_ID_DASH}_S1_${lane}_R2_001.fastq.gz"
             echo "Linked lane ${lane}: $(basename ${r1}) / $(basename ${r2})"
