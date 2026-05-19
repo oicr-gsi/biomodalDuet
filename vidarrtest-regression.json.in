@@ -21,36 +21,12 @@
                         ]
                     },
                     "type": "EXTERNAL"
-                },
-                {
-                    "contents": {
-                        "configuration": "/.mounts/labs/gsi/testdata/biomodalQC/1.0.4/inputs/KLCS_150281_Pl_P_PE_551_NN_240426_M00753_0704_000000000-DNNHV_1_TGAGCTAG-TAACCGGT_R1.fastq.gz",
-                        "externalIds": [
-                            {
-                                "id": "TEST",
-                                "provider": "TEST"
-                            }
-                        ]
-                    },
-                    "type": "EXTERNAL"
                 }
             ],
             "biomodalDuet.fastqR2": [
                 {
                     "contents": {
                         "configuration": "/.mounts/labs/gsi/testdata/biomodalQC/1.0.4/inputs/KLCS_150274_Pl_P_PE_586_NN_240426_M00753_0704_000000000-DNNHV_1_ACTCTCGA-TGGTACAG_R2.fastq.gz",
-                        "externalIds": [
-                            {
-                                "id": "TEST",
-                                "provider": "TEST"
-                            }
-                        ]
-                    },
-                    "type": "EXTERNAL"
-                },
-                {
-                    "contents": {
-                        "configuration": "/.mounts/labs/gsi/testdata/biomodalQC/1.0.4/inputs/KLCS_150281_Pl_P_PE_551_NN_240426_M00753_0704_000000000-DNNHV_1_TGAGCTAG-TAACCGGT_R2.fastq.gz",
                         "externalIds": [
                             {
                                 "id": "TEST",
