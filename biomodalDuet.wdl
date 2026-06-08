@@ -44,21 +44,66 @@ workflow biomodalDuet {
             }
         ]
         output_meta: {
-            outputBam:           "Deduplicated, coordinate-sorted BAM file of aligned reads",
-            outputBai:           "BAM index (.bai) for random-access retrieval of the deduplicated BAM",
-            hmc_cxreport:        "Cytosine Report for 5-hydroxymethylcytosine (5hmC) at CpG sites. Tab-separated, one row per stranded CpG position; columns report chromosome, position, strand, methylated-read count, unmethylated-read count, and context (CG). Suitable for downstream epigenetic analysis tools (e.g. methylKit, DSS). Gzip-compressed.",
-            hmc_cxreportIndex:   "Tabix index (.tbi) for the 5hmC Cytosine Report, enabling fast random-access queries by genomic region",
-            mc_cxreport:         "Cytosine Report for 5-methylcytosine (5mC) at CpG sites. Same tab-separated, per-stranded-CpG format as the 5hmC report; columns give chromosome, position, strand, methylated-read count, unmethylated-read count, and context (CG). Suitable for downstream epigenetic analysis tools (e.g. methylKit, DSS). Gzip-compressed.",
-            mc_cxreportIndex:    "Tabix index (.tbi) for the 5mC Cytosine Report, enabling fast random-access queries by genomic region",
-            modc_cxreport:       "Cytosine Report for total modified cytosine (5mC + 5hmC combined, modC) at CpG sites. Same tab-separated, per-stranded-CpG format; provides an aggregate modification signal across both marks. Gzip-compressed.",
-            modc_cxreportIndex:  "Tabix index (.tbi) for the modC Cytosine Report, enabling fast random-access queries by genomic region",
-            vcf:                 "Germline variant calls VCF (optional; absent when no variants are called)",
-            vcfIndex:            "Tabix index (.tbi) for the germline VCF (optional)",
-            summaryCsv:          "Run-level DUET summary metrics in CSV format",
-            summaryHtml:         "Run-level DUET summary metrics as an interactive HTML report",
-            summaryXlsx:         "Run-level DUET summary metrics in Excel format",
-            multiqcReport:       "MultiQC HTML report aggregating QC metrics across all pipeline steps",
-            metricsDefinitions:  "CSV file defining and describing each metric reported in the summary outputs"
+            outputBam: {
+                description: "Deduplicated, coordinate-sorted BAM file of aligned reads",
+                vidarr_label: "outputBam"
+            },
+            outputBai:  {
+                description: "BAM index (.bai) for random-access retrieval of the deduplicated BAM",
+                vidarr_label: "outputBai"
+            },         
+            hmc_cxreport:  {
+                description: "Cytosine Report for 5-hydroxymethylcytosine (5hmC) at CpG sites. Tab-separated, one row per stranded CpG position; columns report chromosome, position, strand, methylated-read count, unmethylated-read count, and context (CG). Suitable for downstream epigenetic analysis tools (e.g. methylKit, DSS). Gzip-compressed.",
+                vidarr_label: "hmc_cxreport"
+            },      
+            hmc_cxreportIndex: {
+                description: "Tabix index (.tbi) for the 5hmC Cytosine Report, enabling fast random-access queries by genomic region",
+                viarr_label: "hmc_cxreportIndex"
+            },
+            mc_cxreport:  {
+                description: "Cytosine Report for 5-methylcytosine (5mC) at CpG sites. Same tab-separated, per-stranded-CpG format as the 5hmC report; columns give chromosome, position, strand, methylated-read count, unmethylated-read count, and context (CG). Suitable for downstream epigenetic analysis tools (e.g. methylKit, DSS). Gzip-compressed.",
+                vidarr_label: "mc_cxreport"
+            },
+            mc_cxreportIndex: {
+                description: "Tabix index (.tbi) for the 5mC Cytosine Report, enabling fast random-access queries by genomic region",
+                vidarr_label: "mc_cxreportIndex"
+            },
+            modc_cxreport: {
+                description: "Cytosine Report for total modified cytosine (5mC + 5hmC combined, modC) at CpG sites. Same tab-separated, per-stranded-CpG format; provides an aggregate modification signal across both marks. Gzip-compressed.",
+                vidarr_label: "modc_cxreport"
+            }, 
+            modc_cxreportIndex: {
+                description: "Tabix index (.tbi) for the modC Cytosine Report, enabling fast random-access queries by genomic region",
+                vidarr_label: "modc_cxreportIndex"
+            },
+            vcf: {
+                description: "Germline variant calls VCF (optional; absent when no variants are called)",
+                vidarr_label: "vcf"
+            },
+            vcfIndex: {
+                description: "Tabix index (.tbi) for the germline VCF (optional)",
+                vidarr_label: "vcfIndex"
+            },
+            summaryCsv: {
+                description: "Run-level DUET summary metrics in CSV format",
+                vidarr_label: "summaryCsv"
+            },
+            summaryHtml: {
+                description: "Run-level DUET summary metrics as an interactive HTML report",
+                vidarr_label: "summaryHtml"
+            },
+            summaryXlsx: {
+                description: "Run-level DUET summary metrics in Excel format",
+                vidarr_label: "summaryXlsx"
+            },
+            multiqcReport: {
+                description: "MultiQC HTML report aggregating QC metrics across all pipeline steps",
+                vidarr_label: "multiqcReport"
+            },
+            metricsDefinitions: {
+                description: "CSV file defining and describing each metric reported in the summary outputs",
+                vidarr_label: "metricsDefinitions"
+            }
         }
     }
 
