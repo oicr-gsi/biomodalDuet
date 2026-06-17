@@ -47,21 +47,21 @@ Parameter|Value|Default|Description
 
 Output | Type | Description | Labels
 ---|---|---|---
-`outputBam`|File|Deduplicated, coordinate-sorted BAM file of aligned reads|
-`outputBai`|File|BAM index (.bai) for random-access retrieval of the deduplicated BAM|
-`hmc_cxreport`|File|Cytosine Report for 5-hydroxymethylcytosine (5hmC) at CpG sites. Tab-separated, one row per stranded CpG position; columns report chromosome, position, strand, methylated-read count, unmethylated-read count, and context (CG). Suitable for downstream epigenetic analysis tools (e.g. methylKit, DSS). Gzip-compressed.|
+`outputBam`|File|Deduplicated, coordinate-sorted BAM file of aligned reads|vidarr_label: outputBam
+`outputBai`|File|BAM index (.bai) for random-access retrieval of the deduplicated BAM|vidarr_label: outputBai
+`hmc_cxreport`|File|Cytosine Report for 5-hydroxymethylcytosine (5hmC) at CpG sites. Tab-separated, one row per stranded CpG position; columns report chromosome, position, strand, methylated-read count, unmethylated-read count, and context (CG). Suitable for downstream epigenetic analysis tools (e.g. methylKit, DSS). Gzip-compressed.|vidarr_label: hmc_cxreport
 `hmc_cxreportIndex`|File|Tabix index (.tbi) for the 5hmC Cytosine Report, enabling fast random-access queries by genomic region|
-`mc_cxreport`|File|Cytosine Report for 5-methylcytosine (5mC) at CpG sites. Same tab-separated, per-stranded-CpG format as the 5hmC report; columns give chromosome, position, strand, methylated-read count, unmethylated-read count, and context (CG). Suitable for downstream epigenetic analysis tools (e.g. methylKit, DSS). Gzip-compressed.|
-`mc_cxreportIndex`|File|Tabix index (.tbi) for the 5mC Cytosine Report, enabling fast random-access queries by genomic region|
-`modc_cxreport`|File|Cytosine Report for total modified cytosine (5mC + 5hmC combined, modC) at CpG sites. Same tab-separated, per-stranded-CpG format; provides an aggregate modification signal across both marks. Gzip-compressed.|
-`modc_cxreportIndex`|File|Tabix index (.tbi) for the modC Cytosine Report, enabling fast random-access queries by genomic region|
-`vcf`|File?|Germline variant calls VCF (optional; absent when no variants are called)|
-`vcfIndex`|File?|Tabix index (.tbi) for the germline VCF (optional)|
-`summaryCsv`|File|Run-level DUET summary metrics in CSV format|
-`summaryHtml`|File|Run-level DUET summary metrics as an interactive HTML report|
-`summaryXlsx`|File|Run-level DUET summary metrics in Excel format|
-`multiqcReport`|File|MultiQC HTML report aggregating QC metrics across all pipeline steps|
-`metricsDefinitions`|File|CSV file defining and describing each metric reported in the summary outputs|
+`mc_cxreport`|File|Cytosine Report for 5-methylcytosine (5mC) at CpG sites. Same tab-separated, per-stranded-CpG format as the 5hmC report; columns give chromosome, position, strand, methylated-read count, unmethylated-read count, and context (CG). Suitable for downstream epigenetic analysis tools (e.g. methylKit, DSS). Gzip-compressed.|vidarr_label: mc_cxreport
+`mc_cxreportIndex`|File|Tabix index (.tbi) for the 5mC Cytosine Report, enabling fast random-access queries by genomic region|vidarr_label: mc_cxreportIndex
+`modc_cxreport`|File|Cytosine Report for total modified cytosine (5mC + 5hmC combined, modC) at CpG sites. Same tab-separated, per-stranded-CpG format; provides an aggregate modification signal across both marks. Gzip-compressed.|vidarr_label: modc_cxreport
+`modc_cxreportIndex`|File|Tabix index (.tbi) for the modC Cytosine Report, enabling fast random-access queries by genomic region|vidarr_label: modc_cxreportIndex
+`vcf`|File?|Germline variant calls VCF (optional; absent when no variants are called)|vidarr_label: vcf
+`vcfIndex`|File?|Tabix index (.tbi) for the germline VCF (optional)|vidarr_label: vcfIndex
+`summaryCsv`|File|Run-level DUET summary metrics in CSV format|vidarr_label: summaryCsv
+`summaryHtml`|File|Run-level DUET summary metrics as an interactive HTML report|vidarr_label: summaryHtml
+`summaryXlsx`|File|Run-level DUET summary metrics in Excel format|vidarr_label: summaryXlsx
+`multiqcReport`|File|MultiQC HTML report aggregating QC metrics across all pipeline steps|vidarr_label: multiqcReport
+`metricsDefinitions`|File|CSV file defining and describing each metric reported in the summary outputs|vidarr_label: metricsDefinitions
 
 
 ## Commands
@@ -106,6 +106,18 @@ CLIEOF
 singularity {
     libraryDir = "${BIOMODAL_IMAGES_DIR}"
     cacheDir   = "${BIOMODAL_IMAGES_DIR}"
+}
+NFEOF
+
+        # increase TSS_bias module memory
+        cat >> "${INSTANCE_DIR}/nextflow_override.config" << NFEOF
+
+process {
+    withName: 'TSS_BIAS' {
+        cpus   = 2
+        memory = '32GB'
+        time   = '24h'
+    }
 }
 NFEOF
         # Resolve the canonical (symlink-free) path to the pipeline bin dir. Singularity won't follow symlink
@@ -156,13 +168,7 @@ PYEOF
         for i in "${!sorted_R1[@]}"; do
             r1="${sorted_R1[$i]}"
             r2="${sorted_R2[$i]}"
-            base=$(basename "$r1")
-            # Extract lane: single integer before barcode pattern _N_XXXX-XXXX_R1
-            lane_num=$(echo "$base" | grep -oP '_\K\d+(?=_[A-Z]+-[A-Z]+_R[12])' | head -1)
-            if [ -z "${lane_num}" ]; then
-                lane_num=$((i+1))
-            fi
-            lane=$(printf 'L%03d' "${lane_num}")
+            lane=$(printf 'L%03d' "$((i+1))")
             ln -s "${r1}" "nf-input/${SAMPLE_ID_DASH}_S1_${lane}_R1_001.fastq.gz"
             ln -s "${r2}" "nf-input/${SAMPLE_ID_DASH}_S1_${lane}_R2_001.fastq.gz"
             echo "Linked lane ${lane}: $(basename ${r1}) / $(basename ${r2})"

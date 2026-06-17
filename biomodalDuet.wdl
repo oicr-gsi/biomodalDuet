@@ -191,6 +191,18 @@ singularity {
     cacheDir   = "${BIOMODAL_IMAGES_DIR}"
 }
 NFEOF
+
+        # increase TSS_bias module memory
+        cat >> "${INSTANCE_DIR}/nextflow_override.config" << NFEOF
+
+process {
+    withName: 'TSS_BIAS' {
+        cpus   = 2
+        memory = '32GB'
+        time   = '24h'
+    }
+}
+NFEOF
         # Resolve the canonical (symlink-free) path to the pipeline bin dir. Singularity won't follow symlink
         _BIN_REAL=$(realpath "${INSTANCE_DIR}/pipelines/duet/1.5.0/bin")
         cat >> "${INSTANCE_DIR}/nextflow_override.config" << NFEOF
