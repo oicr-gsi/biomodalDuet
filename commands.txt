@@ -43,15 +43,19 @@ singularity {
 }
 NFEOF
 
-        # increase TSS_bias module memory
-        cat >> "${INSTANCE_DIR}/nextflow_override.config" << NFEOF
+        # Per-process memory overrides, driven by WDL task inputs so resource
+        # allocations can be tuned per run without patching this WDL.
+        cat >> "${INSTANCE_DIR}/nextflow_override.config" << 'NFEOF'
 
 process {
-    withName: 'TSS_BIAS' {
-        cpus   = 2
-        memory = '32GB'
-        time   = '24h'
-    }
+    withName: 'PRELUDE'          { memory = '~{preludeMemory}GB' }
+    withName: 'BWA_MEM2'         { memory = '~{bwaMem2Memory}GB' }
+    withName: 'BAMLET'           { memory = '~{bamletMemory}GB' }
+    withName: 'HAPLOTYPE_CALLER' { memory = '~{haplotypeCallerMemory}GB' }
+    withName: 'MUTECT2'          { memory = '~{mutect2Memory}GB' }
+    withName: 'SEQTK_SAMPLE'     { memory = '~{seqtkSampleMemory}GB' }
+    withName: 'SAMTOOLS_MERGE_LANES' { memory = '~{samtoolsMergeLanesMemory}GB' }
+    withName: 'TSS_BIAS'         { memory = '~{tssBiasMemory}GB' }
 }
 NFEOF
         # Resolve the canonical (symlink-free) path to the pipeline bin dir. Singularity won't follow symlink

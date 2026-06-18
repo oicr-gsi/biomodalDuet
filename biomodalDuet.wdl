@@ -138,6 +138,14 @@ task runDuet {
         String modules
         Int    jobMemory = 16
         Int    timeout = 96
+        Int    preludeMemory            = 64
+        Int    bwaMem2Memory            = 64    # set to 128 for mouse (GRCm*) references
+        Int    bamletMemory             = 32
+        Int    haplotypeCallerMemory    = 64
+        Int    mutect2Memory            = 64
+        Int    seqtkSampleMemory        = 64
+        Int    samtoolsMergeLanesMemory = 16    # set to 64 for mouse (GRCm*) references
+        Int    tssBiasMemory            = 32
     }
     parameter_meta {
         fastqR1:              "Array of R1 FASTQ files (all lanes for one sample)"
@@ -150,6 +158,14 @@ task runDuet {
         modules:              "Environment modules to load"
         jobMemory:            "Memory in GB for head task"
         timeout:              "Timeout in hours"
+        preludeMemory:         "Memory (GB) for the PRELUDE process"
+        bwaMem2Memory:         "Memory (GB) for the BWA_MEM2 alignment process"
+        bamletMemory:          "Memory (GB) for the BAMLET process"
+        haplotypeCallerMemory: "Memory (GB) for the HAPLOTYPE_CALLER process"
+        mutect2Memory:         "Memory (GB) for the MUTECT2 process"
+        seqtkSampleMemory:     "Memory (GB) for the SEQTK_SAMPLE subsampling process"
+        samtoolsMergeLanesMemory: "Memory (GB) for the SAMTOOLS_MERGE_LANES process (multi-lane samples)"
+        tssBiasMemory:         "Memory (GB) for the TSS_BIAS process"
     }
 
     command <<<
@@ -192,15 +208,19 @@ singularity {
 }
 NFEOF
 
-        # increase TSS_bias module memory
-        cat >> "${INSTANCE_DIR}/nextflow_override.config" << NFEOF
+        # Per-process memory overrides, driven by WDL task inputs so resource
+        # allocations can be tuned per run without patching this WDL.
+        cat >> "${INSTANCE_DIR}/nextflow_override.config" << 'NFEOF'
 
 process {
-    withName: 'TSS_BIAS' {
-        cpus   = 2
-        memory = '32GB'
-        time   = '24h'
-    }
+    withName: 'PRELUDE'          { memory = '~{preludeMemory}GB' }
+    withName: 'BWA_MEM2'         { memory = '~{bwaMem2Memory}GB' }
+    withName: 'BAMLET'           { memory = '~{bamletMemory}GB' }
+    withName: 'HAPLOTYPE_CALLER' { memory = '~{haplotypeCallerMemory}GB' }
+    withName: 'MUTECT2'          { memory = '~{mutect2Memory}GB' }
+    withName: 'SEQTK_SAMPLE'     { memory = '~{seqtkSampleMemory}GB' }
+    withName: 'SAMTOOLS_MERGE_LANES' { memory = '~{samtoolsMergeLanesMemory}GB' }
+    withName: 'TSS_BIAS'         { memory = '~{tssBiasMemory}GB' }
 }
 NFEOF
         # Resolve the canonical (symlink-free) path to the pipeline bin dir. Singularity won't follow symlink

@@ -41,6 +41,14 @@ Parameter|Value|Default|Description
 `runDuet.additionalProfile`|String|"deep_seq"|Nextflow profile to apply (default: deep_seq)
 `runDuet.jobMemory`|Int|16|Memory in GB for head task
 `runDuet.timeout`|Int|96|Timeout in hours
+`runDuet.preludeMemory`|Int|64|Memory (GB) for the PRELUDE process
+`runDuet.bwaMem2Memory`|Int|64|Memory (GB) for the BWA_MEM2 alignment process
+`runDuet.bamletMemory`|Int|32|Memory (GB) for the BAMLET process
+`runDuet.haplotypeCallerMemory`|Int|64|Memory (GB) for the HAPLOTYPE_CALLER process
+`runDuet.mutect2Memory`|Int|64|Memory (GB) for the MUTECT2 process
+`runDuet.seqtkSampleMemory`|Int|64|Memory (GB) for the SEQTK_SAMPLE subsampling process
+`runDuet.samtoolsMergeLanesMemory`|Int|16|Memory (GB) for the SAMTOOLS_MERGE_LANES process (multi-lane samples)
+`runDuet.tssBiasMemory`|Int|32|Memory (GB) for the TSS_BIAS process
 
 
 ### Outputs
@@ -109,15 +117,19 @@ singularity {
 }
 NFEOF
 
-        # increase TSS_bias module memory
-        cat >> "${INSTANCE_DIR}/nextflow_override.config" << NFEOF
+        # Per-process memory overrides, driven by WDL task inputs so resource
+        # allocations can be tuned per run without patching this WDL.
+        cat >> "${INSTANCE_DIR}/nextflow_override.config" << 'NFEOF'
 
 process {
-    withName: 'TSS_BIAS' {
-        cpus   = 2
-        memory = '32GB'
-        time   = '24h'
-    }
+    withName: 'PRELUDE'          { memory = '~{preludeMemory}GB' }
+    withName: 'BWA_MEM2'         { memory = '~{bwaMem2Memory}GB' }
+    withName: 'BAMLET'           { memory = '~{bamletMemory}GB' }
+    withName: 'HAPLOTYPE_CALLER' { memory = '~{haplotypeCallerMemory}GB' }
+    withName: 'MUTECT2'          { memory = '~{mutect2Memory}GB' }
+    withName: 'SEQTK_SAMPLE'     { memory = '~{seqtkSampleMemory}GB' }
+    withName: 'SAMTOOLS_MERGE_LANES' { memory = '~{samtoolsMergeLanesMemory}GB' }
+    withName: 'TSS_BIAS'         { memory = '~{tssBiasMemory}GB' }
 }
 NFEOF
         # Resolve the canonical (symlink-free) path to the pipeline bin dir. Singularity won't follow symlink
