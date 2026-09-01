@@ -13,6 +13,7 @@ workflow biomodalDuet {
         String slurmAccount = ""
         Array[String] singularityBinds = []
         String processBeforeScript = ""
+        String processTime = ""
         String modules = "biomodal-duet/1.5.0"
     }
 
@@ -28,6 +29,7 @@ workflow biomodalDuet {
         slurmAccount:           "Accounting group for the jobs Nextflow submits, when the site requires one"
         singularityBinds:       "Extra paths bound into every container, added to the binds the task already sets"
         processBeforeScript:    "Script run before every Nextflow process, replacing the one the instance config sets. Empty keeps the pipeline's own, which is what a site other than the one the instance was configured for needs"
+        processTime:            "Wall-clock limit for every Nextflow process, as a Nextflow duration such as 24h, replacing the limits the configs in place set. Empty keeps those, which is only safe where they fit the partition or queue the jobs go to"
         additionalProfile:      "Nextflow profile to apply (default: deep_seq)"
         modules:                "Environment modules to load"
     }
@@ -45,6 +47,7 @@ workflow biomodalDuet {
             slurmAccount         = slurmAccount,
             singularityBinds     = singularityBinds,
             processBeforeScript  = processBeforeScript,
+            processTime          = processTime,
             modules              = modules
     }
 
@@ -154,6 +157,7 @@ task runDuet {
         String slurmAccount = ""
         Array[String] singularityBinds = []
         String processBeforeScript = ""
+        String processTime = ""
         String additionalProfile = "deep_seq"
         String modules
         Int    jobMemory = 16
@@ -179,6 +183,7 @@ task runDuet {
         slurmAccount:         "Accounting group for the jobs Nextflow submits, when the site requires one"
         singularityBinds:     "Extra paths bound into every container, added to the binds the task already sets"
         processBeforeScript:  "Script run before every Nextflow process, replacing the one the instance config sets. Empty keeps the pipeline's own"
+        processTime:          "Wall-clock limit for every Nextflow process, as a Nextflow duration such as 24h, replacing the limits the configs in place set. Empty keeps those"
         additionalProfile:    "Nextflow profile to apply (default: deep_seq)"
         modules:              "Environment modules to load"
         jobMemory:            "Memory in GB for head task"
@@ -322,75 +327,108 @@ p.write_text(content)
 PYEOF
 
         # ---------------------------------------------------------------------------
-        # Scheduler settings, appended last so they win over both the pipeline config
-        # and the instance override above. Written per run rather than kept in a file on
-        # the cluster, so the workflow carries what it needs to switch scheduler.
-        # Only slurm needs this: the configs already in place are written for sge.
+        # Scheduler and wall-time settings, appended last so they win over both the
+        # pipeline config and the instance override above. Written per run rather than
+        # kept in a file on the cluster, so the workflow carries what it needs to switch
+        # scheduler. Nothing is written for an sge run that leaves processTime empty, so
+        # that path keeps exactly the configs already in place.
         # ---------------------------------------------------------------------------
-        if [ "${SCHEDULER}" = "slurm" ]; then
-            SCHED_PARTITION="~{slurmPartition}" \
-            SCHED_ACCOUNT="~{slurmAccount}" \
-            SCHED_BEFORE="~{processBeforeScript}" \
-            SCHED_DATA_PATH="$(pwd)/nf-input" \
-            SCHED_REFERENCE_PATH="${BIOMODAL_REF_DATA_DIR}/1.0.5_GRCh38Decoy" \
-            SCHED_PIPELINE_CONFIG="${INSTANCE_DIR}/pipelines/duet/1.5.0/nextflow.config" \
-            SCHED_OVERRIDE_CONFIG="${INSTANCE_DIR}/nextflow_override.config" \
-            python3 <<'PYEOF'
+        SCHED_SCHEDULER="${SCHEDULER}" \
+        SCHED_PARTITION="~{slurmPartition}" \
+        SCHED_ACCOUNT="~{slurmAccount}" \
+        SCHED_BEFORE="~{processBeforeScript}" \
+        SCHED_TIME="~{processTime}" \
+        SCHED_DATA_PATH="$(pwd)/nf-input" \
+        SCHED_REFERENCE_PATH="${BIOMODAL_REF_DATA_DIR}/1.0.5_GRCh38Decoy" \
+        SCHED_PIPELINE_CONFIG="${INSTANCE_DIR}/pipelines/duet/1.5.0/nextflow.config" \
+        SCHED_OVERRIDE_CONFIG="${INSTANCE_DIR}/nextflow_override.config" \
+        python3 <<'PYEOF'
 import os, pathlib, re
 
+sched = os.environ["SCHED_SCHEDULER"]
+proc_time = os.environ["SCHED_TIME"]
 pipeline_cfg = pathlib.Path(os.environ["SCHED_PIPELINE_CONFIG"]).read_text()
 override = pathlib.Path(os.environ["SCHED_OVERRIDE_CONFIG"])
+override_cfg = override.read_text()
 
-account = os.environ["SCHED_ACCOUNT"]
-cluster_opts = "--account=%s" % account if account else ""
 
-# A generic clusterOptions does not reach a withName selector, and the configs in place
-# set that directive in the other scheduler's syntax, which sbatch rejects. Every
-# selector that sets it therefore needs its own replacement. Found rather than listed,
-# so a pipeline upgrade that adds one is still covered.
-selectors = []
-for src in (pipeline_cfg, override.read_text()):
-    for m in re.finditer(r"withName:\s*'([^']+)'\s*\{([^{}]*)\}", src, re.S):
-        if "clusterOptions" in m.group(2) and m.group(1) not in selectors:
-            selectors.append(m.group(1))
+def selectors_setting(directive):
+    # A generic assignment does not reach a withName selector, so a directive already
+    # set on a selector has to be replaced on that same selector. Found rather than
+    # listed, so a pipeline upgrade that adds one is still covered.
+    found = []
+    for src in (pipeline_cfg, override_cfg):
+        for m in re.finditer(r"withName:\s*'([^']+)'\s*\{([^{}]*)\}", src, re.S):
+            if re.search(r"\b%s\s*=" % directive, m.group(2)) and m.group(1) not in found:
+                found.append(m.group(1))
+    return found
 
-# The instance override runs a beforeScript that loads the modules of the site it was
-# configured for, which cannot run elsewhere. Falling back to the pipeline's own keeps
-# what the pipeline itself needs while dropping what is site-bound.
-before = os.environ["SCHED_BEFORE"]
-if not before:
-    m = re.search(r"^\s*beforeScript\s*=\s*'{3}(.*?)'{3}", pipeline_cfg, re.S | re.M)
-    before = m.group(1) if m else ""
 
-lines = [
-    "",
-    "//////////////////////////////////////////////////////",
-    "// ---- SCHEDULER SETTINGS (generated per run) ----",
-    "process {",
-    "    executor = 'slurm'",
-    "    queue = '%s'" % os.environ["SCHED_PARTITION"],
-    "    clusterOptions = '%s'" % cluster_opts,
-    "    beforeScript = %s%s%s" % ("'" * 3, before, "'" * 3),
-]
-lines += ["    withName: '%s' { clusterOptions = '%s' }" % (s, cluster_opts)
-          for s in selectors]
-# The slurm profile points these at the vendor's own demo installation, where the sge
-# profile leaves them empty for the CLI to fill.
-lines += [
-    "}",
-    "params {",
-    "    data_path = '%s'" % os.environ["SCHED_DATA_PATH"],
-    "    reference_path = '%s'" % os.environ["SCHED_REFERENCE_PATH"],
-    "}",
-    "",
-]
-with override.open("a") as fh:
-    fh.write("\n".join(lines))
+generic = []
+per_selector = {}
+notes = []
 
-print("Wrote slurm scheduler settings; clusterOptions replaced for: %s"
-      % (", ".join(selectors) or "no selectors"))
+
+def on_selector(name, assignment):
+    per_selector.setdefault(name, []).append(assignment)
+
+
+if sched == "slurm":
+    account = os.environ["SCHED_ACCOUNT"]
+    cluster_opts = "--account=%s" % account if account else ""
+    before = os.environ["SCHED_BEFORE"]
+    if not before:
+        # The instance override runs a beforeScript that loads the modules of the site
+        # it was configured for, which cannot run elsewhere. Falling back to the
+        # pipeline's own keeps what the pipeline needs while dropping what is site-bound.
+        m = re.search(r"^\s*beforeScript\s*=\s*'{3}(.*?)'{3}", pipeline_cfg, re.S | re.M)
+        before = m.group(1) if m else ""
+    generic += [
+        "executor = 'slurm'",
+        "queue = '%s'" % os.environ["SCHED_PARTITION"],
+        "clusterOptions = '%s'" % cluster_opts,
+        "beforeScript = %s%s%s" % ("'" * 3, before, "'" * 3),
+    ]
+    # The configs in place set clusterOptions in the other scheduler's syntax, which
+    # sbatch rejects.
+    sel = selectors_setting("clusterOptions")
+    for s in sel:
+        on_selector(s, "clusterOptions = '%s'" % cluster_opts)
+    notes.append("clusterOptions replaced for: %s" % (", ".join(sel) or "no selectors"))
+
+if proc_time:
+    generic.append("time = '%s'" % proc_time)
+    sel = selectors_setting("time")
+    for s in sel:
+        on_selector(s, "time = '%s'" % proc_time)
+    notes.append("time set to %s, including for: %s" % (proc_time, ", ".join(sel) or "no selectors"))
+
+if generic or per_selector:
+    lines = [
+        "",
+        "//////////////////////////////////////////////////////",
+        "// ---- SCHEDULER SETTINGS (generated per run) ----",
+        "process {",
+    ]
+    lines += ["    %s" % g for g in generic]
+    lines += ["    withName: '%s' { %s }" % (s, "; ".join(a))
+              for s, a in per_selector.items()]
+    lines.append("}")
+    if sched == "slurm":
+        # The slurm profile points these at the vendor's own demo installation, where
+        # the sge profile leaves them empty for the CLI to fill.
+        lines += [
+            "params {",
+            "    data_path = '%s'" % os.environ["SCHED_DATA_PATH"],
+            "    reference_path = '%s'" % os.environ["SCHED_REFERENCE_PATH"],
+            "}",
+        ]
+    lines.append("")
+    with override.open("a") as fh:
+        fh.write("\n".join(lines))
+    for n in notes:
+        print("Scheduler settings: %s" % n)
 PYEOF
-        fi
 
         export NXF_HOME="$(pwd)/nxf_home"
         mkdir -p "${NXF_HOME}/framework/25.04.8"
