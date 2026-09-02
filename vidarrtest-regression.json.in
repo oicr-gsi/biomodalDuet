@@ -17,6 +17,12 @@
             "biomodalDuet.runName": "240426_M00753_0704_000000000-DNNHV",
             "biomodalDuet.outputFileNamePrefix": "test_01",
             "biomodalDuet.mode": "6bp",
+            "biomodalDuet.scheduler": null,
+            "biomodalDuet.slurmPartition": "prod",
+            "biomodalDuet.slurmAccount": "gsi",
+            "biomodalDuet.singularityBinds": null,
+            "biomodalDuet.processBeforeScript": null,
+            "biomodalDuet.processTime": null,
             "biomodalDuet.fastqR1": [
                 {
                     "contents": {

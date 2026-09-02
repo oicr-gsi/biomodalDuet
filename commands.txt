@@ -6,6 +6,48 @@ This section lists command(s) run by biomodalDuet workflow
 ```
         set -euo pipefail
 
+        # ---------------------------------------------------------------------------
+        # Which scheduler Nextflow submits its own jobs to. Resolved from the submit
+        # command the cluster provides so one set of inputs is portable between sites;
+        # the scheduler input overrides that. Decided before any work is done, so a
+        # setting that cannot be satisfied fails immediately rather than after alignment.
+        # ---------------------------------------------------------------------------
+        SCHEDULER="~{scheduler}"
+        if [ -z "${SCHEDULER}" ]; then
+            if   command -v sbatch >/dev/null 2>&1; then SCHEDULER=slurm
+            elif command -v qsub   >/dev/null 2>&1; then SCHEDULER=sge
+            else
+                echo "ERROR: cannot tell which scheduler Nextflow should submit to: neither sbatch nor qsub is on PATH. Set the scheduler input" >&2
+                exit 1
+            fi
+            echo "Detected scheduler: ${SCHEDULER}"
+        fi
+
+        SLURM_ONLY=()
+        [ -z "~{slurmPartition}" ]      || SLURM_ONLY+=("slurmPartition")
+        [ -z "~{slurmAccount}" ]        || SLURM_ONLY+=("slurmAccount")
+        [ -z "~{processBeforeScript}" ] || SLURM_ONLY+=("processBeforeScript")
+
+        case "${SCHEDULER}" in
+            sge)
+                # Ignored rather than refused, so one set of inputs can carry them and
+                # still run where they do not apply.
+                if [ "${#SLURM_ONLY[@]}" -gt 0 ]; then
+                    echo "Note: $(IFS=,; echo "${SLURM_ONLY[*]}") ignored; those apply only to slurm"
+                fi
+                ;;
+            slurm)
+                if [ -z "~{slurmPartition}" ]; then
+                    echo "ERROR: scheduler slurm requires slurmPartition: the pipeline's slurm profile names a queue that does not exist here" >&2
+                    exit 1
+                fi
+                ;;
+            *)
+                echo "ERROR: scheduler must be sge or slurm, got '${SCHEDULER}'" >&2
+                exit 1
+                ;;
+        esac
+
         mkdir -p biomodal_instance
         ln -s $BIOMODAL_INSTANCE_DIR/* ./biomodal_instance
         # Replace symlinks with real writable copies
@@ -25,7 +67,7 @@ This section lists command(s) run by biomodalDuet workflow
             images_registry_location: ${BIOMODAL_IMAGES_DIR}
             nextflow_work_directory_location: $(pwd)/work
             reference_files_location: ${BIOMODAL_REF_DATA_DIR}
-            type: sge
+            type: ${SCHEDULER}
         pipelines:
             duet:
                 version: 1.5.0
@@ -60,10 +102,19 @@ process {
 NFEOF
         # Resolve the canonical (symlink-free) path to the pipeline bin dir. Singularity won't follow symlink
         _BIN_REAL=$(realpath "${INSTANCE_DIR}/pipelines/duet/1.5.0/bin")
+        # A later runOptions replaces the whole string rather than adding to it, so the
+        # caller's binds are composed in here instead of being appended separately.
+        _BINDS=(~{sep=' ' singularityBinds})
+        _EXTRA_BINDS=""
+        if [ "${#_BINDS[@]}" -gt 0 ]; then
+            for _b in "${_BINDS[@]}"; do
+                _EXTRA_BINDS="${_EXTRA_BINDS} --bind \"${_b}\""
+            done
+        fi
         cat >> "${INSTANCE_DIR}/nextflow_override.config" << NFEOF
 
 singularity {
-    runOptions = '--bind "\$TMPDIR:/tmp" --bind "${_BIN_REAL}:${_BIN_REAL}"'
+    runOptions = '--bind "\$TMPDIR:/tmp" --bind "${_BIN_REAL}:${_BIN_REAL}"${_EXTRA_BINDS}'
 }
 NFEOF
 
@@ -78,6 +129,110 @@ content = re.sub(
     count=1
 )
 p.write_text(content)
+PYEOF
+
+        # ---------------------------------------------------------------------------
+        # Scheduler and wall-time settings, appended last so they win over both the
+        # pipeline config and the instance override above. Written per run rather than
+        # kept in a file on the cluster, so the workflow carries what it needs to switch
+        # scheduler. Nothing is written for an sge run that leaves processTime empty, so
+        # that path keeps exactly the configs already in place.
+        # ---------------------------------------------------------------------------
+        SCHED_SCHEDULER="${SCHEDULER}" \
+        SCHED_PARTITION="~{slurmPartition}" \
+        SCHED_ACCOUNT="~{slurmAccount}" \
+        SCHED_BEFORE="~{processBeforeScript}" \
+        SCHED_TIME="~{processTime}" \
+        SCHED_DATA_PATH="$(pwd)/nf-input" \
+        SCHED_REFERENCE_PATH="${BIOMODAL_REF_DATA_DIR}/1.0.5_GRCh38Decoy" \
+        SCHED_PIPELINE_CONFIG="${INSTANCE_DIR}/pipelines/duet/1.5.0/nextflow.config" \
+        SCHED_OVERRIDE_CONFIG="${INSTANCE_DIR}/nextflow_override.config" \
+        python3 <<'PYEOF'
+import os, pathlib, re
+
+sched = os.environ["SCHED_SCHEDULER"]
+proc_time = os.environ["SCHED_TIME"]
+pipeline_cfg = pathlib.Path(os.environ["SCHED_PIPELINE_CONFIG"]).read_text()
+override = pathlib.Path(os.environ["SCHED_OVERRIDE_CONFIG"])
+override_cfg = override.read_text()
+
+
+def selectors_setting(directive):
+    # A generic assignment does not reach a withName selector, so a directive already
+    # set on a selector has to be replaced on that same selector. Found rather than
+    # listed, so a pipeline upgrade that adds one is still covered.
+    found = []
+    for src in (pipeline_cfg, override_cfg):
+        for m in re.finditer(r"withName:\s*'([^']+)'\s*\{([^{}]*)\}", src, re.S):
+            if re.search(r"\b%s\s*=" % directive, m.group(2)) and m.group(1) not in found:
+                found.append(m.group(1))
+    return found
+
+
+generic = []
+per_selector = {}
+notes = []
+
+
+def on_selector(name, assignment):
+    per_selector.setdefault(name, []).append(assignment)
+
+
+if sched == "slurm":
+    account = os.environ["SCHED_ACCOUNT"]
+    cluster_opts = "--account=%s" % account if account else ""
+    before = os.environ["SCHED_BEFORE"]
+    if not before:
+        # The instance override runs a beforeScript that loads the modules of the site
+        # it was configured for, which cannot run elsewhere. Falling back to the
+        # pipeline's own keeps what the pipeline needs while dropping what is site-bound.
+        m = re.search(r"^\s*beforeScript\s*=\s*'{3}(.*?)'{3}", pipeline_cfg, re.S | re.M)
+        before = m.group(1) if m else ""
+    generic += [
+        "executor = 'slurm'",
+        "queue = '%s'" % os.environ["SCHED_PARTITION"],
+        "clusterOptions = '%s'" % cluster_opts,
+        "beforeScript = %s%s%s" % ("'" * 3, before, "'" * 3),
+    ]
+    # The configs in place set clusterOptions in the other scheduler's syntax, which
+    # sbatch rejects.
+    sel = selectors_setting("clusterOptions")
+    for s in sel:
+        on_selector(s, "clusterOptions = '%s'" % cluster_opts)
+    notes.append("clusterOptions replaced for: %s" % (", ".join(sel) or "no selectors"))
+
+if proc_time:
+    generic.append("time = '%s'" % proc_time)
+    sel = selectors_setting("time")
+    for s in sel:
+        on_selector(s, "time = '%s'" % proc_time)
+    notes.append("time set to %s, including for: %s" % (proc_time, ", ".join(sel) or "no selectors"))
+
+if generic or per_selector:
+    lines = [
+        "",
+        "//////////////////////////////////////////////////////",
+        "// ---- SCHEDULER SETTINGS (generated per run) ----",
+        "process {",
+    ]
+    lines += ["    %s" % g for g in generic]
+    lines += ["    withName: '%s' { %s }" % (s, "; ".join(a))
+              for s, a in per_selector.items()]
+    lines.append("}")
+    if sched == "slurm":
+        # The slurm profile points these at the vendor's own demo installation, where
+        # the sge profile leaves them empty for the CLI to fill.
+        lines += [
+            "params {",
+            "    data_path = '%s'" % os.environ["SCHED_DATA_PATH"],
+            "    reference_path = '%s'" % os.environ["SCHED_REFERENCE_PATH"],
+            "}",
+        ]
+    lines.append("")
+    with override.open("a") as fh:
+        fh.write("\n".join(lines))
+    for n in notes:
+        print("Scheduler settings: %s" % n)
 PYEOF
 
         export NXF_HOME="$(pwd)/nxf_home"
