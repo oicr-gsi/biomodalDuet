@@ -369,6 +369,12 @@ per_selector = {}
 notes = []
 
 
+TMPDIR_GUARD = (
+    'export TMPDIR="${TMPDIR:-${TMP:-/tmp}}"\n'
+    'export SINGULARITY_TMPDIR="${TMPDIR}" APPTAINER_TMPDIR="${TMPDIR}"\n'
+)
+
+
 def on_selector(name, assignment):
     per_selector.setdefault(name, []).append(assignment)
 
@@ -383,6 +389,12 @@ if sched == "slurm":
         # pipeline's own keeps what the pipeline needs while dropping what is site-bound.
         m = re.search(r"^\s*beforeScript\s*=\s*'{3}(.*?)'{3}", pipeline_cfg, re.S | re.M)
         before = m.group(1) if m else ""
+    # Grid Engine always sets TMPDIR; slurm does not. The runOptions bind it, so an unset
+    # value binds an empty path, and the container runtime unpacks each image into a
+    # sandbox under it -- which on a filesystem mounted without execute permission fails
+    # on the first command inside the container. Prefer the node-local scratch the
+    # scheduler offers.
+    before = TMPDIR_GUARD + before
     generic += [
         "executor = 'slurm'",
         "queue = '%s'" % os.environ["SCHED_PARTITION"],
