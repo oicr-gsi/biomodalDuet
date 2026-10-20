@@ -369,6 +369,25 @@ per_selector = {}
 notes = []
 
 
+# An image is unpacked into a sandbox and then run from there, so the directory has to
+# allow execution as well as be writable. Each candidate is tested by running something
+# from it rather than assumed, because what the schedulers offer differs. Bare /tmp is
+# refused even where it works, since that is the path being mounted noexec as clusters are
+# hardened. No single quotes: the snippet is carried through a Groovy quoted string.
+TMPDIR_GUARD = (
+    "for d in \"${TMP:-}\" \"${TMPDIR:-}\" \"${PWD}\"; do\n"
+    "  [ -n \"$d\" ] && [ \"$d\" != /tmp ] && [ -d \"$d\" ] && [ -w \"$d\" ] || continue\n"
+    "  p=$(mktemp \"$d/exectest.XXXXXX\" 2>/dev/null) || continue\n"
+    "  printf \"#!/bin/sh\\nexit 0\\n\" > \"$p\"\n"
+    "  if chmod +x \"$p\" 2>/dev/null && \"$p\" 2>/dev/null; then rm -f \"$p\"; export TMPDIR=\"$d\"; break; fi\n"
+    "  rm -f \"$p\"\n"
+    "done\n"
+    "[ -n \"${TMPDIR:-}\" ] && [ \"${TMPDIR}\" != /tmp ] || "
+    "{ echo \"ERROR: no writable directory that allows execution; set TMP to one\" >&2; exit 1; }\n"
+    "export SINGULARITY_TMPDIR=\"${TMPDIR}\" APPTAINER_TMPDIR=\"${TMPDIR}\"\n"
+)
+
+
 def on_selector(name, assignment):
     per_selector.setdefault(name, []).append(assignment)
 
@@ -383,6 +402,9 @@ if sched == "slurm":
         # pipeline's own keeps what the pipeline needs while dropping what is site-bound.
         m = re.search(r"^\s*beforeScript\s*=\s*'{3}(.*?)'{3}", pipeline_cfg, re.S | re.M)
         before = m.group(1) if m else ""
+    # Grid Engine always sets TMPDIR; slurm does not, and the runOptions bind it, so an
+    # unset value would bind an empty path and fail every process.
+    before = TMPDIR_GUARD + before
     generic += [
         "executor = 'slurm'",
         "queue = '%s'" % os.environ["SCHED_PARTITION"],
