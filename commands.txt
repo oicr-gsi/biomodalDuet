@@ -169,32 +169,6 @@ def selectors_setting(directive):
     return found
 
 
-def current_before_script():
-    # Whatever beforeScript is already in force, so the guard below extends it rather than
-    # replacing it. The override the vendor installer writes wins over the pipeline's own,
-    # which is the order Nextflow applies them in.
-    for src in (override_cfg, pipeline_cfg):
-        m = re.search(r"^\s*beforeScript\s*=\s*\'{3}(.*?)\'{3}", src, re.S | re.M)
-        if m:
-            return m.group(1)
-    return ""
-
-
-# The environment each process needs is rebuilt from scratch in every job, because the
-# jobs Nextflow submits do not inherit one. That makes a momentary problem reading the
-# module tree fatal: the load quietly does nothing, the tool is not on PATH, and the task
-# dies reporting only that a command was not found. Try once more before giving up, and
-# say plainly what was missing rather than leaving it to the first command that needs it.
-BEFORE_GUARD = (
-    "\nif ! command -v singularity >/dev/null 2>&1; then\n"
-    "  sleep 5\n"
-    "%s\n"
-    "fi\n"
-    "command -v singularity >/dev/null 2>&1 || "
-    "{ echo \"ERROR: singularity is not on PATH after the module load\" >&2; exit 1; }\n"
-)
-
-
 generic = []
 per_selector = {}
 notes = []
@@ -236,7 +210,6 @@ if sched == "slurm":
     # Grid Engine always sets TMPDIR; slurm does not, and the runOptions bind it, so an
     # unset value would bind an empty path and fail every process.
     before = TMPDIR_GUARD + before
-    before = before + (BEFORE_GUARD % before)
     generic += [
         "executor = 'slurm'",
         "queue = '%s'" % os.environ["SCHED_PARTITION"],
@@ -249,15 +222,6 @@ if sched == "slurm":
     for s in sel:
         on_selector(s, "clusterOptions = '%s'" % cluster_opts)
     notes.append("clusterOptions replaced for: %s" % (", ".join(sel) or "no selectors"))
-
-if sched == "sge":
-    # Nothing else about the sge path is overridden; only the beforeScript is extended,
-    # so the memory and queue settings already in place are left exactly as they are.
-    before = current_before_script()
-    if before:
-        generic.append("beforeScript = %s%s%s"
-                       % ("'" * 3, before + (BEFORE_GUARD % before), "'" * 3))
-        notes.append("beforeScript extended with a singularity check")
 
 if proc_time:
     generic.append("time = '%s'" % proc_time)
