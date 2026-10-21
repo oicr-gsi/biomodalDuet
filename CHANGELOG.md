@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2026-10-21
+### Fixed
+- Check that the container runtime is on PATH before a process uses it, and try the module
+  load once more if it is not. The jobs Nextflow submits inherit no environment and rebuild
+  it in each one, so a momentary problem reading the module tree left the tool missing and
+  the task failed reporting only that a command was not found.
+
 ## [1.1.1] - 2026-10-16
 ### Fixed
 - Unpack container images somewhere that allows execution. The shared temporary directory
