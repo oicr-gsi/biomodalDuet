@@ -369,6 +369,41 @@ per_selector = {}
 notes = []
 
 
+# An image is unpacked into a sandbox and then run from there, so the directory has to be
+# writable and allow execution. The first writable candidate is taken; bare /tmp is skipped
+# even where it works, since that is the path being mounted noexec as clusters are hardened.
+# Whether the chosen one allows execution is NOT tested -- a site that points TMP at a
+# noexec directory gets a failure on its first containerised process, a minute or two in.
+#
+# Exporting the variable is not enough on its own: the container is launched with the
+# environment cleared except for PATH, so the runtime never sees it and falls back to its
+# built-in default. A wrapper early on PATH sets it again for that one call and then runs
+# the real binary, which it resolves while writing the wrapper rather than through PATH, so
+# it cannot call itself. The snippet reaches a Groovy quoted string, which would process a
+# backslash escape, so it has to stay free of them.
+TMPDIR_GUARD = (
+    "for d in \"${TMP:-}\" \"${TMPDIR:-}\" \"${PWD}\"; do\n"
+    "  [ -n \"$d\" ] && [ \"$d\" != /tmp ] && [ -d \"$d\" ] && [ -w \"$d\" ] || continue\n"
+    "  export TMPDIR=\"$d\"; break\n"
+    "done\n"
+    "[ -n \"${TMPDIR:-}\" ] && [ \"${TMPDIR}\" != /tmp ] || "
+    "{ echo \"ERROR: no writable directory for the container runtime; set TMP to one that "
+    "allows execution\" >&2; exit 1; }\n"
+    "export SINGULARITY_TMPDIR=\"${TMPDIR}\" APPTAINER_TMPDIR=\"${TMPDIR}\"\n"
+    "shim=\"${PWD}/.container-shim\"\n"
+    "mkdir -p \"${shim}\"\n"
+    "for exe in singularity apptainer; do\n"
+    "  real=$(command -v \"${exe}\" 2>/dev/null) || continue\n"
+    "  { echo '#!/bin/sh'\n"
+    "    echo \"export SINGULARITY_TMPDIR=${TMPDIR} APPTAINER_TMPDIR=${TMPDIR}\"\n"
+    "    echo \"exec ${real} \" '\"$@\"'\n"
+    "  } > \"${shim}/${exe}\"\n"
+    "  chmod +x \"${shim}/${exe}\"\n"
+    "done\n"
+    "export PATH=\"${shim}:${PATH}\"\n"
+)
+
+
 def on_selector(name, assignment):
     per_selector.setdefault(name, []).append(assignment)
 
@@ -383,6 +418,9 @@ if sched == "slurm":
         # pipeline's own keeps what the pipeline needs while dropping what is site-bound.
         m = re.search(r"^\s*beforeScript\s*=\s*'{3}(.*?)'{3}", pipeline_cfg, re.S | re.M)
         before = m.group(1) if m else ""
+    # Grid Engine always sets TMPDIR; slurm does not, and the runOptions bind it, so an
+    # unset value would bind an empty path and fail every process.
+    before = TMPDIR_GUARD + before
     generic += [
         "executor = 'slurm'",
         "queue = '%s'" % os.environ["SCHED_PARTITION"],
