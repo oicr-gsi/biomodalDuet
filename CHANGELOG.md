@@ -8,11 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Unpack container images somewhere that allows execution. The shared temporary directory
   is mounted noexec on some clusters, where unpacking succeeds and the first command inside
-  the container fails. Each candidate is now tested by running something from it, bare
-  `/tmp` is refused, and a run where none is usable stops with that reason. The setting is
-  carried in by a wrapper placed on `PATH`, because Nextflow launches the container with
-  the environment cleared except for `PATH`, which leaves an export from the process
-  script invisible to the runtime.
+  the container fails. The first writable candidate of `TMP`, `TMPDIR` and the work
+  directory is used, skipping bare `/tmp`. The setting is carried in by a wrapper placed on
+  `PATH`, because Nextflow launches the container with the environment cleared except for
+  `PATH`, which leaves an export from the process script invisible to the runtime. Whether
+  the chosen directory allows execution is not tested: a site that points `TMP` at a noexec
+  one gets a failure on its first containerised process rather than hours later.
 
 ## [1.1.0] - 2026-09-01
 ### Added

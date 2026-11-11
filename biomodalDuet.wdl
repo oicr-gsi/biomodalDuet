@@ -369,28 +369,26 @@ per_selector = {}
 notes = []
 
 
-# An image is unpacked into a sandbox and then run from there, so the directory has to
-# allow execution as well as be writable. Each candidate is tested by running something
-# from it rather than assumed, because what the schedulers offer differs. Bare /tmp is
-# refused even where it works, since that is the path being mounted noexec as clusters are
-# hardened. The snippet is carried through a Groovy quoted string, which would process a
-# backslash escape, so it has to stay free of them.
+# An image is unpacked into a sandbox and then run from there, so the directory has to be
+# writable and allow execution. The first writable candidate is taken; bare /tmp is skipped
+# even where it works, since that is the path being mounted noexec as clusters are hardened.
+# Whether the chosen one allows execution is NOT tested -- a site that points TMP at a
+# noexec directory gets a failure on its first containerised process, a minute or two in.
 #
 # Exporting the variable is not enough on its own: the container is launched with the
 # environment cleared except for PATH, so the runtime never sees it and falls back to its
 # built-in default. A wrapper early on PATH sets it again for that one call and then runs
-# the real binary, which it resolves while writing the wrapper rather than through PATH,
-# so it cannot call itself.
+# the real binary, which it resolves while writing the wrapper rather than through PATH, so
+# it cannot call itself. The snippet reaches a Groovy quoted string, which would process a
+# backslash escape, so it has to stay free of them.
 TMPDIR_GUARD = (
     "for d in \"${TMP:-}\" \"${TMPDIR:-}\" \"${PWD}\"; do\n"
     "  [ -n \"$d\" ] && [ \"$d\" != /tmp ] && [ -d \"$d\" ] && [ -w \"$d\" ] || continue\n"
-    "  p=$(mktemp \"$d/exectest.XXXXXX\" 2>/dev/null) || continue\n"
-    "  { echo '#!/bin/sh'; echo 'exit 0'; } > \"$p\"\n"
-    "  if chmod +x \"$p\" 2>/dev/null && \"$p\" 2>/dev/null; then rm -f \"$p\"; export TMPDIR=\"$d\"; break; fi\n"
-    "  rm -f \"$p\"\n"
+    "  export TMPDIR=\"$d\"; break\n"
     "done\n"
     "[ -n \"${TMPDIR:-}\" ] && [ \"${TMPDIR}\" != /tmp ] || "
-    "{ echo \"ERROR: no writable directory that allows execution; set TMP to one\" >&2; exit 1; }\n"
+    "{ echo \"ERROR: no writable directory for the container runtime; set TMP to one that "
+    "allows execution\" >&2; exit 1; }\n"
     "export SINGULARITY_TMPDIR=\"${TMPDIR}\" APPTAINER_TMPDIR=\"${TMPDIR}\"\n"
     "shim=\"${PWD}/.container-shim\"\n"
     "mkdir -p \"${shim}\"\n"
