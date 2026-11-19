@@ -6,7 +6,7 @@ WDL wrapper for the Biomodal DUET methylation sequencing pipeline v1.5.0
 
 ## Dependencies
 
-* [biomodal-duet 1.5.0](https://biomodal.com)
+* [biomodal-duet 1.5.0.1](https://biomodal.com)
 
 
 ## Usage
@@ -38,7 +38,7 @@ Parameter|Value|Default|Description
 `singularityBinds`|Array[String]|[]|Extra paths bound into every container, added to the binds the task already sets
 `processBeforeScript`|String|""|Script run before every Nextflow process, replacing the one the instance config sets. Empty keeps the pipeline's own, which is what a site other than the one the instance was configured for needs
 `processTime`|String|""|Wall-clock limit for every Nextflow process, as a Nextflow duration such as 24h, replacing the limits the configs in place set. Empty keeps those, which is only safe where they fit the partition or queue the jobs go to
-`modules`|String|"biomodal-duet/1.5.0"|Environment modules to load
+`modules`|String|"biomodal-duet/1.5.0.1"|Environment modules to load
 
 
 #### Optional task parameters:
@@ -194,7 +194,7 @@ NFEOF
         cat >> "${INSTANCE_DIR}/nextflow_override.config" << NFEOF
 
 singularity {
-    runOptions = '--bind "\$TMPDIR:/tmp" --bind "${_BIN_REAL}:${_BIN_REAL}"${_EXTRA_BINDS}'
+    runOptions = '--bind "\${TMPDIR:-/tmp}:/tmp" --bind "${_BIN_REAL}:${_BIN_REAL}"${_EXTRA_BINDS}'
 }
 NFEOF
 
@@ -254,6 +254,8 @@ per_selector = {}
 notes = []
 
 
+
+
 def on_selector(name, assignment):
     per_selector.setdefault(name, []).append(assignment)
 
@@ -272,8 +274,14 @@ if sched == "slurm":
         "executor = 'slurm'",
         "queue = '%s'" % os.environ["SCHED_PARTITION"],
         "clusterOptions = '%s'" % cluster_opts,
-        "beforeScript = %s%s%s" % ("'" * 3, before, "'" * 3),
     ]
+    # Emitted even when empty, which is the point: the instance config sets a
+    # beforeScript that loads one named build of the container runtime from one named OS
+    # tree, and on another tree that is a build the site has not granted the unprivileged
+    # namespace to, so every process is refused. The module's own dependency already puts
+    # the right one on PATH. This assignment is read last, so it replaces that one; what
+    # it carries is the pipeline's own beforeScript, or the caller's, or nothing.
+    generic.append("beforeScript = %s%s%s" % ("'" * 3, before, "'" * 3))
     # The configs in place set clusterOptions in the other scheduler's syntax, which
     # sbatch rejects.
     sel = selectors_setting("clusterOptions")

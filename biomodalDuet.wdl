@@ -14,7 +14,7 @@ workflow biomodalDuet {
         Array[String] singularityBinds = []
         String processBeforeScript = ""
         String processTime = ""
-        String modules = "biomodal-duet/1.5.0"
+        String modules = "biomodal-duet/1.5.0.1"
     }
 
     parameter_meta {
@@ -57,7 +57,7 @@ workflow biomodalDuet {
         description: "WDL wrapper for the Biomodal DUET methylation sequencing pipeline v1.5.0"
         dependencies: [
             {
-                name: "biomodal-duet/1.5.0",
+                name: "biomodal-duet/1.5.0.1",
                 url: "https://biomodal.com"
             }
         ]
@@ -309,7 +309,7 @@ NFEOF
         cat >> "${INSTANCE_DIR}/nextflow_override.config" << NFEOF
 
 singularity {
-    runOptions = '--bind "\$TMPDIR:/tmp" --bind "${_BIN_REAL}:${_BIN_REAL}"${_EXTRA_BINDS}'
+    runOptions = '--bind "\${TMPDIR:-/tmp}:/tmp" --bind "${_BIN_REAL}:${_BIN_REAL}"${_EXTRA_BINDS}'
 }
 NFEOF
 
@@ -369,6 +369,8 @@ per_selector = {}
 notes = []
 
 
+
+
 def on_selector(name, assignment):
     per_selector.setdefault(name, []).append(assignment)
 
@@ -387,8 +389,14 @@ if sched == "slurm":
         "executor = 'slurm'",
         "queue = '%s'" % os.environ["SCHED_PARTITION"],
         "clusterOptions = '%s'" % cluster_opts,
-        "beforeScript = %s%s%s" % ("'" * 3, before, "'" * 3),
     ]
+    # Emitted even when empty, which is the point: the instance config sets a
+    # beforeScript that loads one named build of the container runtime from one named OS
+    # tree, and on another tree that is a build the site has not granted the unprivileged
+    # namespace to, so every process is refused. The module's own dependency already puts
+    # the right one on PATH. This assignment is read last, so it replaces that one; what
+    # it carries is the pipeline's own beforeScript, or the caller's, or nothing.
+    generic.append("beforeScript = %s%s%s" % ("'" * 3, before, "'" * 3))
     # The configs in place set clusterOptions in the other scheduler's syntax, which
     # sbatch rejects.
     sel = selectors_setting("clusterOptions")
