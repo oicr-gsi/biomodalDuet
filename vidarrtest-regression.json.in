@@ -1,7 +1,7 @@
 [
     {
         "arguments": {
-            "biomodalDuet.modules": "biomodal-duet/1.5.0",
+            "biomodalDuet.modules": null,
             "biomodalDuet.runDuet.jobMemory": 16,
             "biomodalDuet.runDuet.timeout": 96,
             "biomodalDuet.runDuet.additionalProfile": "deep_seq",
